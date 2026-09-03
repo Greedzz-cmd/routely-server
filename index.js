@@ -37,7 +37,7 @@ async function run() {
                 
                 const query = {}
                 if(isAdvertised !== undefined){
-                    query.isAdvertised = isAdvertised==="true";
+                    query.isAdvertised = isAdvertised === "true";
                 }
                 
                 const tickets = await collection.find(query).toArray();
