@@ -195,6 +195,66 @@ async function run() {
             }
         });
 
+        //Post ticket
+        app.post("/tickets", async (req, res) => {
+            try {
+                const db = client.db("routely");
+                const collection = db.collection("tickets");
+
+                const ticketData = req.body;
+
+                // Validate ticketData here if needed
+
+                const result = await collection.insertOne(ticketData);
+
+                res.status(201).json({
+                    message: "Ticket created successfully",
+                    ticketId: result.insertedId,
+                });
+            } catch (error) {
+                console.error(error);
+
+                res.status(500).json({
+                    message: "Failed to create ticket",
+                });
+            }
+        });
+
+        //Get vendors
+        app.get("/vendors", async (req, res) => {
+            try {
+                const db = client.db("routely");
+                const collection = db.collection("user");
+
+                const vendors = await collection.find({role: "vendor"}).toArray();
+
+                res.json(vendors);
+            } catch (error) {
+                console.error(error);
+
+                res.status(500).json({
+                    message: "Failed to fetch vendors",
+                });
+            }
+        });
+
+        app.patch("/vendors/:id", async (req, res) => {
+            try {
+                const db = client.db("routely");
+                const collection = db.collection("user");
+
+                const vendors = await collection.find({role: "vendor"}).toArray();
+
+                res.json(vendors);
+            } catch (error) {
+                console.error(error);
+
+                res.status(500).json({
+                    message: "Failed to fetch vendors",
+                });
+            }
+        });
+
         app.listen(port, () => {
             console.log(`Server is running on port ${port}`);
         });
