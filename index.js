@@ -160,6 +160,26 @@ async function run() {
             }
         });
 
+        //Get approved tickets
+        app.get("/tickets/approved", async (req, res) => {
+            try {
+                const db = client.db("routely");
+                const collection = db.collection("tickets");
+
+                const tickets = await collection
+                    .find({ verificationStatus: "approved" })
+                    .toArray();
+
+                res.json(tickets);
+            } catch (error) {
+                console.error(error);
+
+                res.status(500).json({
+                    message: "Failed to fetch approved tickets",
+                });
+            }
+        });
+
         // Get single ticket
         app.get("/tickets/:id", async (req, res) => {
             try {
@@ -216,6 +236,84 @@ async function run() {
 
                 res.status(500).json({
                     message: "Failed to create ticket",
+                });
+            }
+        });
+
+        //Patch ticket
+        app.patch("/tickets/:id", async (req, res) => {
+            try {
+                const db = client.db("routely");
+                const collection = db.collection("tickets");
+
+                const { id } = req.params;
+                const updateData = req.body;
+
+                // Validate ObjectId
+                if (!ObjectId.isValid(id)) {
+                    return res.status(400).json({
+                        message: "Invalid ticket ID",
+                    });
+                }
+
+                // Validate updateData here if needed
+
+                const result = await collection.updateOne(
+                    { _id: new ObjectId(id) },
+                    { $set: updateData }
+                );
+
+                if (result.matchedCount === 0) {
+                    return res.status(404).json({
+                        message: "Ticket not found",
+                    });
+                }
+
+                res.json({
+                    message: "Ticket updated successfully",
+                });
+            } catch (error) {
+                console.error(error);
+
+                res.status(500).json({
+                    message: "Failed to update ticket",
+                });
+            }
+        });
+
+        //Delete ticket
+        app.delete("/tickets/:id", async (req, res) => {
+            try {
+                const db = client.db("routely");
+                const collection = db.collection("tickets");
+
+                const { id } = req.params;
+
+                // Validate ObjectId
+                if (!ObjectId.isValid(id)) {
+                    return res.status(400).json({
+                        message: "Invalid ticket ID",
+                    });
+                }
+
+                const result = await collection.deleteOne({
+                    _id: new ObjectId(id),
+                });
+
+                if (result.deletedCount === 0) {
+                    return res.status(404).json({
+                        message: "Ticket not found",
+                    });
+                }
+
+                res.json({
+                    message: "Ticket deleted successfully",
+                });
+            } catch (error) {
+                console.error(error);
+
+                res.status(500).json({
+                    message: "Failed to delete ticket",
                 });
             }
         });
