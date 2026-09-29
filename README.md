@@ -165,3 +165,20 @@ with `sync: false` so no secret is stored in this file.
 For Atlas, either allowlist Render's outbound addresses or set
 `NODE_OPTIONS=--dns-result-order=ipv4first`, which avoids the `SrvIOError` that
 occurs when a host cannot resolve IPv6 first.
+
+### Vercel
+
+The repository also includes a Vercel function entry point at `api/index.js`.
+Import the repository into Vercel with the project root set to this directory;
+Vercel installs dependencies from `package.json` and `vercel.json` sends requests
+to the Express app. Add `MONGODB_URI`, `MONGODB_DB`, `AUTH_BASE_URL`,
+`CLIENT_URLS`, `PAYMENTS_MODE`, `PAYMENT_CURRENCY`, `PAYMENT_SUCCESS_URL`,
+`PAYMENT_CANCEL_URL`, and any required Stripe or imgBB keys in the Vercel
+project's Environment Variables settings. Set production `NODE_ENV` to
+`production`, and include the deployed frontend origin in `CLIENT_URLS`.
+
+The MongoDB Atlas network access rules must allow connections from Vercel's
+serverless functions. If Atlas network restrictions prevent those connections,
+requests that need the database will return 503 until network access is fixed.
+The `/` and `/health` endpoints also pass through the database connection
+because this API initializes its indexes before handling requests.

@@ -11,6 +11,7 @@ const COLLECTIONS = {
 
 let client;
 let database;
+let connectionPromise;
 
 /**
  * Opens the shared Mongo connection and the indexes the query layer relies on.
@@ -21,42 +22,61 @@ const connectDatabase = async () => {
         return database;
     }
 
-    client = new MongoClient(env.mongoUri, {
-        serverApi: {
-            version: ServerApiVersion.v1,
-            strict: true,
-            deprecationErrors: true,
-        },
-    });
+    // Several Vercel requests can enter a warm function at once. Share one
+    // connection and index setup instead of racing multiple MongoClients.
+    if (connectionPromise) {
+        return connectionPromise;
+    }
 
-    await client.connect();
-    await client.db("admin").command({ ping: 1 });
+    connectionPromise = (async () => {
+        client = new MongoClient(env.mongoUri, {
+            serverApi: {
+                version: ServerApiVersion.v1,
+                strict: true,
+                deprecationErrors: true,
+            },
+        });
 
-    database = client.db(env.mongoDb);
+        try {
+            await client.connect();
+            await client.db("admin").command({ ping: 1 });
 
-    const { tickets, bookings, transactions, users } = COLLECTIONS;
+            database = client.db(env.mongoDb);
 
-    // Listing, filtering and sorting happen on the server, so these back the
-    // most frequent reads on the All Tickets page.
-    await database.collection(tickets).createIndex({ verificationStatus: 1, createdAt: -1 });
-    await database.collection(tickets).createIndex({ isAdvertised: 1, verificationStatus: 1 });
-    await database.collection(tickets).createIndex({ from: 1, to: 1, price: 1 });
-    await database.collection(tickets).createIndex({ vendorEmail: 1, createdAt: -1 });
-    await database.collection(tickets).createIndex({ transportType: 1 });
+            const { tickets, bookings, transactions, users } = COLLECTIONS;
 
-    await database.collection(bookings).createIndex({ userEmail: 1, createdAt: -1 });
-    await database.collection(bookings).createIndex({ vendorEmail: 1, status: 1 });
-    await database.collection(bookings).createIndex({ ticketId: 1 });
+            // Listing, filtering and sorting happen on the server, so these
+            // back the most frequent reads on the All Tickets page.
+            await database.collection(tickets).createIndex({ verificationStatus: 1, createdAt: -1 });
+            await database.collection(tickets).createIndex({ isAdvertised: 1, verificationStatus: 1 });
+            await database.collection(tickets).createIndex({ from: 1, to: 1, price: 1 });
+            await database.collection(tickets).createIndex({ vendorEmail: 1, createdAt: -1 });
+            await database.collection(tickets).createIndex({ transportType: 1 });
 
-    await database.collection(transactions).createIndex({ userEmail: 1, paidAt: -1 });
-    await database.collection(transactions).createIndex({ bookingId: 1 }, { unique: true });
+            await database.collection(bookings).createIndex({ userEmail: 1, createdAt: -1 });
+            await database.collection(bookings).createIndex({ vendorEmail: 1, status: 1 });
+            await database.collection(bookings).createIndex({ ticketId: 1 });
 
-    await database.collection(users).createIndex({ email: 1 }, { unique: true });
-    await database.collection(users).createIndex({ role: 1, isFraud: 1 });
+            await database.collection(transactions).createIndex({ userEmail: 1, paidAt: -1 });
+            await database.collection(transactions).createIndex({ bookingId: 1 }, { unique: true });
 
-    console.log(`Connected to MongoDB database "${env.mongoDb}".`);
+            await database.collection(users).createIndex({ email: 1 }, { unique: true });
+            await database.collection(users).createIndex({ role: 1, isFraud: 1 });
 
-    return database;
+            console.log(`Connected to MongoDB database "${env.mongoDb}".`);
+
+            return database;
+        } catch (error) {
+            await client.close().catch(() => {});
+            client = undefined;
+            database = undefined;
+            throw error;
+        } finally {
+            connectionPromise = undefined;
+        }
+    })();
+
+    return connectionPromise;
 };
 
 const getDatabase = () => {
