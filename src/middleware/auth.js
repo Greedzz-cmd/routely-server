@@ -70,6 +70,31 @@ const requireAuth = async (req, res, next) => {
     }
 };
 
+/**
+ * Populates req.user when a valid token happens to be present, but never
+ * rejects. Used on routes that are public by default yet grant the ticket's
+ * owner or an admin extra visibility, so those checks need to know who is
+ * asking without forcing every anonymous visitor to authenticate.
+ */
+const optionalAuth = async (req, res, next) => {
+    const token = decodeBearerToken(req);
+
+    if (!token) {
+        next();
+        return;
+    }
+
+    try {
+        const { payload } = await verifyToken(token);
+
+        req.user = payload;
+    } catch {
+        // An absent or stale token just means "anonymous" on an optional route.
+    }
+
+    next();
+};
+
 const readRole = (user) => String(user?.role || "user").toLowerCase();
 
 /** Restricts a route to the listed roles. Must run after requireAuth. */
@@ -89,4 +114,4 @@ const requireRole = (...roles) => (req, res, next) => {
 
 const isAdmin = (user) => readRole(user) === "admin";
 
-module.exports = { requireAuth, requireRole, isAdmin, readRole };
+module.exports = { requireAuth, optionalAuth, requireRole, isAdmin, readRole };

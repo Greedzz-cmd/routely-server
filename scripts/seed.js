@@ -5,15 +5,18 @@
  *
  * Earlier iterations of this project stored departureDateTime as a string,
  * which silently breaks every date comparison and sort in Mongo, and the sample
- * catalogue drifted past the six advertisement limit. This script normalises
- * the data, pulls expired departures back into the future so the catalogue is
- * bookable for a demo, and leaves a realistic spread of verification statuses
- * for the admin tables.
+ * catalogue drifted past the six advertisement limit. It also seeded ticket
+ * _id values that are 23 character strings rather than 12 byte ObjectIds, which
+ * every route rejects with "Invalid ticket id". This script normalises the
+ * data, re-points references at repaired ids, pulls expired departures back
+ * into the future so the catalogue is bookable for a demo, and leaves a
+ * realistic spread of verification statuses for the admin tables.
  *
  * Safe to run repeatedly.
  */
 const { connectDatabase, getCollection, closeDatabase } = require("../src/config/db");
 const { TRANSPORT_TYPES } = require("../src/models/ticket.model");
+const { ObjectId } = require("mongodb");
 
 const HOUR = 60 * 60 * 1000;
 const MAX_ADVERTISED = 6;
@@ -148,6 +151,54 @@ const normaliseUserRoles = async () => {
 };
 
 /**
+ * Replaces string ticket _id values with real ObjectIds.
+ *
+ * The catalogue was seeded with 23 character ids, and every route that reads a
+ * ticket validates its id with ObjectId.isValid, so those tickets could not be
+ * opened, booked, edited or moderated at all. Mongo cannot mutate _id, so each
+ * document is re-inserted under a new id and the old one removed, and any
+ * booking or transaction pointing at the old id is re-pointed in the same pass
+ * so no history is lost.
+ */
+const repairTicketIds = async () => {
+    const tickets = getCollection("tickets");
+    const bookings = getCollection("bookings");
+    const transactions = getCollection("transactions");
+
+    const stringKeyed = await tickets
+        .find({ _id: { $type: "string" } })
+        .toArray();
+
+    let repaired = 0;
+    let repointedBookings = 0;
+    let repointedTransactions = 0;
+
+    for (const ticket of stringKeyed) {
+        // Placed after the spread so the new id wins over the old one.
+        const document = { ...ticket, _id: new ObjectId() };
+
+        await tickets.insertOne(document);
+        await tickets.deleteOne({ _id: ticket._id });
+
+        const bookingResult = await bookings.updateMany(
+            { ticketId: ticket._id },
+            { $set: { ticketId: document._id } }
+        );
+        repointedBookings += bookingResult.modifiedCount || 0;
+
+        const transactionResult = await transactions.updateMany(
+            { ticketId: ticket._id },
+            { $set: { ticketId: document._id } }
+        );
+        repointedTransactions += transactionResult.modifiedCount || 0;
+
+        repaired += 1;
+    }
+
+    return { repaired, repointedBookings, repointedTransactions };
+};
+
+/**
  * Derives a fare class for tickets that never carried one.
  *
  * The catalogue was seeded before fare class existed, so the client invented
@@ -210,6 +261,13 @@ const summarise = async () => {
 
 const main = async () => {
     await connectDatabase();
+
+    const ids = await repairTicketIds();
+    log(
+        `ticket ids: ${ids.repaired} converted to ObjectId, ` +
+            `${ids.repointedBookings} bookings and ` +
+            `${ids.repointedTransactions} transactions re-pointed`
+    );
 
     const dates = await normaliseTicketDates();
     log(

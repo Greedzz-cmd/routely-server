@@ -46,8 +46,11 @@ const resolvePage = (value) => Math.max(Math.trunc(toNumber(value) || 1), 1);
 /**
  * Builds the Mongo filter for the All Tickets page.
  *
- * Only admin approved tickets are ever returned publicly, and tickets hidden
- * because their vendor was marked as fraud are excluded from every listing.
+ * The caller states which verification statuses it wants; there is no implicit
+ * default here, because the admin moderation table and a vendor's own ticket
+ * list legitimately need to see pending and rejected rows. The public routes
+ * are the ones that pass "approved" explicitly, and tickets hidden because
+ * their vendor was marked as fraud are excluded unless asked for.
  */
 const buildTicketQuery = ({
     from,
@@ -65,8 +68,6 @@ const buildTicketQuery = ({
 
     if (verificationStatus) {
         query.verificationStatus = verificationStatus;
-    } else {
-        query.verificationStatus = "approved";
     }
 
     if (typeof isAdvertised === "boolean") {

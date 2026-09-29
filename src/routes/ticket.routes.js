@@ -1,7 +1,7 @@
 const express = require("express");
 
 const asyncHandler = require("../middleware/asyncHandler");
-const { requireAuth, requireRole } = require("../middleware/auth");
+const { requireAuth, optionalAuth, requireRole } = require("../middleware/auth");
 const controller = require("../controllers/ticket.controller");
 
 const router = express.Router();
@@ -40,6 +40,6 @@ router.patch(
     controller.toggleAdvertisement
 );
 
-router.get("/tickets/:id", controller.getTicketById);
+router.get("/tickets/:id", optionalAuth, controller.getTicketById);
 
 module.exports = router;

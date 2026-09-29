@@ -35,6 +35,10 @@ const getTickets = asyncHandler(async (req, res) => {
         sort,
         page,
         limit,
+        // Public catalogue: approved only, stated here rather than defaulted
+        // inside the query builder so the privileged listings below can ask
+        // for every status.
+        verificationStatus: "approved",
     });
 
     res.json({
@@ -70,11 +74,18 @@ const getTicketById = asyncHandler(async (req, res) => {
         throw ApiError.notFound("Ticket not found.");
     }
 
-    // Unapproved tickets stay visible to their owner and to admins only.
+    // Unapproved or fraud-hidden tickets stay visible to their owner and to
+    // admins only. optionalAuth is what makes this check work at all on a
+    // route that anonymous visitors can also reach.
     const role = readRole(req.user);
     const isOwner = req.user && ticket.vendorId === String(req.user.id);
+    const isPrivileged = isOwner || role === "admin";
 
-    if (ticket.verificationStatus !== "approved" && !isOwner && role !== "admin") {
+    if (ticket.isHidden && !isPrivileged) {
+        throw ApiError.notFound("Ticket not found.");
+    }
+
+    if (ticket.verificationStatus !== "approved" && !isPrivileged) {
         throw ApiError.notFound("Ticket not found.");
     }
 
