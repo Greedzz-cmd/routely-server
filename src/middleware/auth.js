@@ -1,12 +1,13 @@
-const { createRemoteJWKSet, jwtVerify } = require("jose");
-
 const { env } = require("../config/env");
 const ApiError = require("../utils/ApiError");
 
+// jose v6 is ESM-only. Load it with import() so this CommonJS app works on
+// Vercel's Node runtime as well as local Node.
+const josePromise = import("jose");
 let remoteKeySet;
 let verificationMode = env.authSecret ? "secret" : "jwks";
 
-const getKeySet = () => {
+const getKeySet = (createRemoteJWKSet) => {
     if (!remoteKeySet) {
         remoteKeySet = createRemoteJWKSet(
             new URL(`${env.authBaseUrl}/api/auth/jwks`)
@@ -28,6 +29,7 @@ const decodeBearerToken = (req) => {
  * supported so the API works whichever provider plugin the client enables.
  */
 const verifyToken = async (token) => {
+    const { createRemoteJWKSet, jwtVerify } = await josePromise;
     const options = {
         issuer: env.authBaseUrl,
         audience: env.authBaseUrl,
@@ -38,7 +40,7 @@ const verifyToken = async (token) => {
     }
 
     try {
-        return await jwtVerify(token, getKeySet(), options);
+        return await jwtVerify(token, getKeySet(createRemoteJWKSet), options);
     } catch (error) {
         if (!env.authSecret) {
             throw error;
