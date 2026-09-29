@@ -1,5 +1,5 @@
 const asyncHandler = require("../middleware/asyncHandler");
-const { getDatabase } = require("../config/db");
+const { getCollection, getDatabase } = require("../config/db");
 const ApiError = require("../utils/ApiError");
 const {
     listUsers,
@@ -154,7 +154,10 @@ const getVendorStats = asyncHandler(async (req, res) => {
 const getAdminStats = asyncHandler(async (_req, res) => {
     const db = getDatabase();
 
-    const [[ticketStats], [bookingStats], [userStats]] = await Promise.all([
+    // Only the ticket aggregation groups down to a single row. Bookings and
+    // users group by a key, so both come back as one row per status or role
+    // and must stay as arrays.
+    const [ticketRows, bookingStats, userStats] = await Promise.all([
         db.collection("tickets")
             .aggregate([
                 {
@@ -173,11 +176,15 @@ const getAdminStats = asyncHandler(async (_req, res) => {
                 { $group: { _id: "$status", count: { $sum: 1 } } },
             ])
             .toArray(),
-        db.collection("user")
+        // Through getCollection, not db.collection: the app's "users" key maps
+        // to Better Auth's singular "user" collection, and reaching past the
+        // mapping reads a collection that does not exist.
+        getCollection("users")
             .aggregate([{ $group: { _id: "$role", count: { $sum: 1 } } }])
             .toArray(),
     ]);
 
+    const ticketStats = ticketRows[0];
     const byStatus = Object.fromEntries(bookingStats.map((row) => [row._id, row.count]));
 
     res.json({
