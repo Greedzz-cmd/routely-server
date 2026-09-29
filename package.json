@@ -1,19 +1,21 @@
 {
   "name": "ticket-bari-server",
   "version": "1.0.0",
-  "description": "",
+  "description": "Routely API - ticket booking backend for bus, train, launch and flight tickets",
   "license": "ISC",
   "author": "",
-  "type": "commonjs",
-  "main": "index.js",
+  "main": "src/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "check": "node --check src/server.js && node --check src/app.js"
   },
   "dependencies": {
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jose": "^6.2.12",
-    "mongodb": "^7.5.0"
+    "mongodb": "^7.5.0",
+    "stripe": "^22.6.2"
   }
 }
