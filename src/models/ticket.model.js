@@ -56,6 +56,7 @@ const buildTicketQuery = ({
     vendorEmail,
     vendorId,
     verificationStatus,
+    isAdvertised,
     includeHidden = false,
 } = {}) => {
     const query = {};
@@ -64,6 +65,10 @@ const buildTicketQuery = ({
         query.verificationStatus = verificationStatus;
     } else {
         query.verificationStatus = "approved";
+    }
+
+    if (typeof isAdvertised === "boolean") {
+        query.isAdvertised = isAdvertised;
     }
 
     if (!includeHidden) {
@@ -157,7 +162,7 @@ const findTicketsByIds = async (ids) => {
 const countTickets = (query = {}) => getCollection("tickets").countDocuments(query);
 
 /** Validates and normalises the vendor supplied Add Ticket form. */
-const validateTicketPayload = (body = {}) => {
+const validateTicketPayload = (body = {}, { requireFutureDeparture = true } = {}) => {
     const title = String(body.title || "").trim();
     const from = String(body.from || "").trim();
     const to = String(body.to || "").trim();
@@ -200,7 +205,7 @@ const validateTicketPayload = (body = {}) => {
 
         if (Number.isNaN(departure.getTime())) {
             errors.departureDateTime = "Departure date and time is invalid.";
-        } else if (departure.getTime() <= Date.now()) {
+        } else if (requireFutureDeparture && departure.getTime() <= Date.now()) {
             errors.departureDateTime = "Departure must be in the future.";
         }
     } else {

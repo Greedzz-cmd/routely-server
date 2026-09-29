@@ -2,6 +2,7 @@ const express = require("express");
 
 const { requireAuth } = require("../middleware/auth");
 const asyncHandler = require("../middleware/asyncHandler");
+const ticketRoutes = require("./ticket.routes");
 
 const router = express.Router();
 
@@ -13,5 +14,7 @@ router.get(
         res.json({ user: req.user });
     })
 );
+
+router.use(ticketRoutes);
 
 module.exports = router;
