@@ -18,6 +18,7 @@ const getTickets = asyncHandler(async (req, res) => {
         from,
         to,
         transportType,
+        fareClass,
         q,
         search,
         sort,
@@ -29,6 +30,7 @@ const getTickets = asyncHandler(async (req, res) => {
         from,
         to,
         transportType,
+        fareClass,
         search: search || q,
         sort,
         page,
@@ -356,6 +358,54 @@ const toggleAdvertisement = asyncHandler(async (req, res) => {
     });
 });
 
+/**
+ * Busiest routes for the homepage, derived from the approved catalogue so the
+ * section can never advertise a destination that has no tickets.
+ */
+const getPopularRoutes = asyncHandler(async (req, res) => {
+    const limit = Math.min(Math.max(Number(req.query.limit) || 6, 1), 12);
+    const now = new Date();
+    const tickets = getCollection("tickets");
+
+    const rows = await tickets
+        .aggregate([
+            {
+                $match: {
+                    verificationStatus: "approved",
+                    isHidden: { $ne: true },
+                    departureDateTime: { $gt: now },
+                },
+            },
+            {
+                $group: {
+                    _id: { from: "$from", to: "$to" },
+                    count: { $sum: 1 },
+                    fromPrice: { $min: "$price" },
+                    departureDateTime: { $min: "$departureDateTime" },
+                    transportTypes: { $addToSet: "$transportType" },
+                    vendorName: { $first: "$vendorName" },
+                },
+            },
+            { $sort: { count: -1, fromPrice: 1 } },
+            { $limit: limit },
+            {
+                $project: {
+                    _id: 0,
+                    from: "$_id.from",
+                    to: "$_id.to",
+                    ticketCount: "$count",
+                    fromPrice: "$fromPrice",
+                    nextDeparture: "$departureDateTime",
+                    transportTypes: 1,
+                    vendorName: 1,
+                },
+            },
+        ])
+        .toArray();
+
+    res.json(rows);
+});
+
 /** Distinct origins and destinations used to populate the search inputs. */
 const getLocations = asyncHandler(async (_req, res) => {
     const tickets = getCollection("tickets");
@@ -397,5 +447,6 @@ module.exports = {
     toggleAdvertisement,
     getLocations,
     getTransportTypes,
+    getPopularRoutes,
     buildTicketQuery,
 };

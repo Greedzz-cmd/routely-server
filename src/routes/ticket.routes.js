@@ -11,6 +11,7 @@ router.get("/tickets", controller.getTickets);
 router.get("/tickets/advertised", controller.getAdvertisedTickets);
 router.get("/tickets/locations", controller.getLocations);
 router.get("/tickets/transport-types", controller.getTransportTypes);
+router.get("/tickets/routes/popular", controller.getPopularRoutes);
 
 // --- Authenticated --------------------------------------------------------
 router.get("/tickets/me", requireAuth, requireRole("vendor", "admin"), controller.getMyTickets);

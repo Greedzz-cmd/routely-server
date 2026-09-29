@@ -2,6 +2,7 @@ const { getCollection } = require("../config/db");
 const ApiError = require("../utils/ApiError");
 
 const TRANSPORT_TYPES = ["Bus", "Train", "Launch", "Flight"];
+const FARE_CLASSES = ["Economy", "Business", "First", "Economy Plus"];
 const VERIFICATION_STATUSES = ["pending", "approved", "rejected"];
 const PERKS = [
     "AC",
@@ -52,6 +53,7 @@ const buildTicketQuery = ({
     from,
     to,
     transportType,
+    fareClass,
     search,
     vendorEmail,
     vendorId,
@@ -88,6 +90,19 @@ const buildTicketQuery = ({
             $regex: `^${escapeRegExp(transportType.trim())}$`,
             $options: "i",
         };
+    }
+
+    // Whitelisted rather than escaped: the catalogue only ever holds these
+    // values, and an unknown label should mean "no filter" instead of a
+    // guaranteed empty result.
+    if (fareClass && fareClass.toLowerCase() !== "all") {
+        const matched = FARE_CLASSES.find(
+            (fare) => fare.toLowerCase() === fareClass.trim().toLowerCase()
+        );
+
+        if (matched) {
+            query.fareClass = matched;
+        }
     }
 
     if (search) {
@@ -242,6 +257,7 @@ const validateTicketPayload = (body = {}, { requireFutureDeparture = true } = {}
 
 module.exports = {
     TRANSPORT_TYPES,
+    FARE_CLASSES,
     VERIFICATION_STATUSES,
     PERKS,
     SORT_OPTIONS,

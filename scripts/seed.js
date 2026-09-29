@@ -147,6 +147,45 @@ const normaliseUserRoles = async () => {
     return { updated, total: await users.countDocuments() };
 };
 
+/**
+ * Derives a fare class for tickets that never carried one.
+ *
+ * The catalogue was seeded before fare class existed, so the client invented
+ * one at render time from price and perks. Persisting that same rule here means
+ * the stored value, the badge on the card and the ?fareClass filter all agree
+ * instead of the filter silently matching nothing.
+ */
+const deriveFareClass = (ticket) => {
+    const price = Number(ticket.price) || 0;
+    const perkCount = Array.isArray(ticket.perks) ? ticket.perks.length : 0;
+
+    if (price >= 3000 || perkCount >= 4) {
+        return "Business";
+    }
+
+    if (ticket.transportType !== "Bus" && price <= 700) {
+        return "First";
+    }
+
+    return "Economy";
+};
+
+const normaliseFareClasses = async () => {
+    const tickets = getCollection("tickets");
+    let updated = 0;
+
+    for (const ticket of await tickets.find({ fareClass: { $in: [null, ""] } }).toArray()) {
+        await tickets.updateOne(
+            { _id: ticket._id },
+            { $set: { fareClass: deriveFareClass(ticket) } }
+        );
+
+        updated += 1;
+    }
+
+    return { updated, total: await tickets.countDocuments() };
+};
+
 const summarise = async () => {
     const tickets = getCollection("tickets");
     const now = new Date();
@@ -186,6 +225,9 @@ const main = async () => {
 
     const roles = await normaliseUserRoles();
     log(`user roles: ${roles.updated} normalised, ${roles.total} total`);
+
+    const fares = await normaliseFareClasses();
+    log(`fare classes: ${fares.updated} derived, ${fares.total} total`);
 
     log("summary:", JSON.stringify(await summarise(), null, 2));
 
