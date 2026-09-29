@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: routely-api
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      # Set these in the Render dashboard, never in this file.
+      - key: MONGODB_URI
+        sync: false
+      - key: AUTH_BASE_URL
+        sync: false
+      - key: CLIENT_URLS
+        sync: false
+      - key: PAYMENTS_MODE
+        value: stripe
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: IMGBB_API_KEY
+        sync: false
