@@ -11,7 +11,18 @@ const app = express();
 app.set("trust proxy", 1);
 
 app.use(cors(corsOptions));
-app.use(express.json({ limit: "2mb" }));
+
+// Stripe signs the exact bytes it sent, so the raw body is kept alongside the
+// parsed one for the webhook route to verify.
+app.use(
+    express.json({
+        limit: "2mb",
+        verify(req, res, buffer) {
+            req.rawBody = buffer;
+        },
+    })
+);
+
 app.use(express.urlencoded({ extended: true }));
 
 app.get("/health", (_req, res) => {

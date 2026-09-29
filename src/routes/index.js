@@ -3,6 +3,7 @@ const express = require("express");
 const { requireAuth } = require("../middleware/auth");
 const asyncHandler = require("../middleware/asyncHandler");
 const ticketRoutes = require("./ticket.routes");
+const bookingRoutes = require("./booking.routes");
 
 const router = express.Router();
 
@@ -16,5 +17,6 @@ router.get(
 );
 
 router.use(ticketRoutes);
+router.use(bookingRoutes);
 
 module.exports = router;
