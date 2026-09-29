@@ -3,6 +3,8 @@ const cors = require("cors");
 
 const { env } = require("./config/env");
 const { corsOptions } = require("./config/cors");
+const routes = require("./routes");
+const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 
 const app = express();
 
@@ -25,5 +27,10 @@ app.get("/health", (_req, res) => {
 app.get("/", (_req, res) => {
     res.json({ message: "Routely API is running.", health: "/health" });
 });
+
+app.use(routes);
+
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 module.exports = app;

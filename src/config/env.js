@@ -32,6 +32,9 @@ const env = {
     // Where Better Auth lives. JWTs issued there are verified against its JWKS.
     authBaseUrl,
 
+    // Optional shared secret, used only when the client signs tokens with HS256.
+    authSecret: process.env.AUTH_SECRET || "",
+
     clientUrls: toList(process.env.CLIENT_URLS || process.env.CLIENT_URL || authBaseUrl),
 
     payments: {
