@@ -1,5 +1,5 @@
 const asyncHandler = require("../middleware/asyncHandler");
-const { requireAuth, isAdmin } = require("../middleware/auth");
+const { requireAuth, isAdmin, readRole } = require("../middleware/auth");
 const { parseObjectId } = require("../middleware/errorHandler");
 const ApiError = require("../utils/ApiError");
 const { env } = require("../config/env");
@@ -15,29 +15,45 @@ const {
 } = require("../models/booking.model");
 const { recordTransaction } = require("../models/transaction.model");
 
-/** Scopes a listing to the caller's own bookings unless they are an admin. */
-const resolveListOwner = (req, requestedEmail) => {
-    if (isAdmin(req.user) && requestedEmail) {
-        return { email: requestedEmail, isVendor: false };
+/**
+ * Decides whose bookings a listing returns.
+ *
+ * A booking has two owners: the traveller who bought seats (userEmail) and the
+ * vendor who has to answer the request (vendorEmail). The same account can be
+ * both, so the caller states which side it wants via ?vendorEmail / ?userEmail.
+ * An admin may name either; everyone else is pinned to their own address.
+ */
+const resolveListOwner = (req) => {
+    const askedVendor = String(req.query.vendorEmail || "").trim();
+    const askedUser = String(req.query.userEmail || "").trim();
+    const ownEmail = String(req.user.email);
+    const isSelf = (value) => value.toLowerCase() === ownEmail.toLowerCase();
+
+    if (askedVendor) {
+        if (isAdmin(req.user)) {
+            return { email: askedVendor, isVendor: true };
+        }
+
+        if (readRole(req.user) === "vendor" && isSelf(askedVendor)) {
+            return { email: ownEmail, isVendor: true };
+        }
+
+        throw ApiError.forbidden("You can only view your own bookings.");
     }
 
-    if (String(req.query.vendorEmail || "").length && req.user.role === "vendor") {
-        const requested = String(req.query.vendorEmail);
-        const isSelf = requested.toLowerCase() === String(req.user.email).toLowerCase();
-
-        if (!isSelf) {
+    if (askedUser) {
+        if (!isAdmin(req.user) && !isSelf(askedUser)) {
             throw ApiError.forbidden("You can only view your own bookings.");
         }
 
-        return { email: req.user.email, isVendor: true };
+        return { email: askedUser, isVendor: false };
     }
 
-    return { email: req.user.email, isVendor: false };
+    return { email: ownEmail, isVendor: false };
 };
 
 const getBookings = asyncHandler(async (req, res) => {
-    const requestedEmail = req.query.userEmail || req.query.vendorEmail;
-    const { email, isVendor } = resolveListOwner(req, requestedEmail);
+    const { email, isVendor } = resolveListOwner(req);
 
     const bookings = isVendor
         ? await listBookingsForVendor(email, { status: req.query.status })

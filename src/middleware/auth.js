@@ -97,7 +97,7 @@ const optionalAuth = async (req, res, next) => {
     next();
 };
 
-const readRole = (user) => String(user?.role || "user").toLowerCase();
+const readRole = (user) => String(user?.role || "traveller").toLowerCase();
 
 /** Restricts a route to the listed roles. Must run after requireAuth. */
 const requireRole = (...roles) => (req, res, next) => {

@@ -20,7 +20,7 @@ const { ObjectId } = require("mongodb");
 
 const HOUR = 60 * 60 * 1000;
 const MAX_ADVERTISED = 6;
-const ROLES = ["user", "vendor", "admin"];
+const ROLES = ["traveller", "vendor", "admin"];
 
 const log = (...args) => console.log(...args);
 
@@ -127,7 +127,14 @@ const normaliseAdvertisements = async () => {
     return { removed: unadvertised, promoted };
 };
 
-/** Legacy accounts used roles such as "traveller" that the API does not accept. */
+/**
+ * Brings stored roles in line with the API's allowlist.
+ *
+ * Accounts created before the rename were rewritten to "user", which the API no
+ * longer accepts, and this pass used to do that rewrite to "traveller" as well.
+ * Both spellings now mean traveller, so anything outside the allowlist is
+ * treated as a traveller while vendor and admin are left untouched.
+ */
 const normaliseUserRoles = async () => {
     const users = getCollection("users");
     let updated = 0;
@@ -141,7 +148,7 @@ const normaliseUserRoles = async () => {
 
         await users.updateOne(
             { _id: user._id },
-            { $set: { role: "user" } }
+            { $set: { role: "traveller" } }
         );
 
         updated += 1;

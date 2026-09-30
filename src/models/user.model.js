@@ -3,7 +3,7 @@ const { ObjectId } = require("mongodb");
 const { getCollection } = require("../config/db");
 const ApiError = require("../utils/ApiError");
 
-const ROLES = ["user", "vendor", "admin"];
+const ROLES = ["traveller", "vendor", "admin"];
 
 const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -14,7 +14,7 @@ const buildUserIdFilter = (id) =>
 const toPlainId = (user) => ({
     ...user,
     id: String(user._id),
-    role: String(user.role || "user").toLowerCase(),
+    role: String(user.role || "traveller").toLowerCase(),
     isFraud: Boolean(user.isFraud),
 });
 

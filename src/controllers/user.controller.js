@@ -33,7 +33,7 @@ const getCurrentUser = asyncHandler(async (req, res) => {
             name: req.user.name || req.user.email,
             email: req.user.email,
             image: req.user.image || null,
-            role: String(req.user.role || "user").toLowerCase(),
+            role: String(req.user.role || "traveller").toLowerCase(),
             isFraud: false,
         });
         return;
@@ -198,7 +198,7 @@ const getAdminStats = asyncHandler(async (_req, res) => {
             total: bookingStats.reduce((sum, row) => sum + row.count, 0),
             ...byStatus,
         },
-        users: Object.fromEntries(userStats.map((row) => [row._id || "user", row.count])),
+        users: Object.fromEntries(userStats.map((row) => [row._id || "traveller", row.count])),
     });
 });
 
