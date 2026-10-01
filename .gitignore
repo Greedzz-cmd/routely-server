@@ -5,6 +5,10 @@
 .env
 .env.local
 .env.*.local
+!.env.example
+
+# vercel project link (project/org ids)
+.vercel
 
 # logs
 npm-debug.log*
